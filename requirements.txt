@@ -1,0 +1,5 @@
+pymongo==4.7.3
+pandas==3.0.3
+kaggle==1.6.14
+python-dotenv==1.0.1
+tqdm==4.66.4

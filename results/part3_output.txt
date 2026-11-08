@@ -1,0 +1,251 @@
+Індекси на старті: ["_id_"]
+
+======================================================================
+Завдання 1. track_genre = 'pop' + danceability ≥ 0.7, сортування за popularity ↓
+======================================================================
+Запит повертає документів: 354
+
+--- 1.1. До створення індексу ---
+{
+  label: 'без індексу',
+  winningPlan: 'SORT → COLLSCAN',
+  indexName: '(немає)',
+  nReturned: 354,
+  totalKeysExamined: 0,
+  totalDocsExamined: 113999,
+  executionTimeMillis: 114,
+  rejectedPlans: 0
+}
+
+--- 1.2. Після створення індексу (ESR) ---
+{
+  label: 'індекс ESR',
+  winningPlan: 'FETCH → IXSCAN',
+  indexName: 'genre_popularity_danceability',
+  nReturned: 354,
+  totalKeysExamined: 412,
+  totalDocsExamined: 354,
+  executionTimeMillis: 2,
+  rejectedPlans: 0,
+  indexBounds: {
+    track_genre: [
+      '["pop", "pop"]'
+    ],
+    popularity: [
+      '[MaxKey, MinKey]'
+    ],
+    'audio_features.danceability': [
+      '[0.7, inf.0]'
+    ]
+  }
+}
+
+--- 1.3. Порівняння: індекс E → R → S (примусово через hint) ---
+{
+  label: 'індекс ERS (hint)',
+  winningPlan: 'FETCH → SORT → IXSCAN',
+  indexName: 'genre_danceability_popularity',
+  nReturned: 354,
+  totalKeysExamined: 354,
+  totalDocsExamined: 354,
+  executionTimeMillis: 2,
+  rejectedPlans: 0,
+  indexBounds: {
+    track_genre: [
+      '["pop", "pop"]'
+    ],
+    'audio_features.danceability': [
+      '[0.7, inf.0]'
+    ],
+    popularity: [
+      '[MaxKey, MinKey]'
+    ]
+  }
+}
+
+--- 1.4. Який план обирає оптимізатор, коли є обидва індекси ---
+{
+  label: 'вибір оптимізатора',
+  winningPlan: 'FETCH → IXSCAN',
+  indexName: 'genre_popularity_danceability',
+  nReturned: 354,
+  totalKeysExamined: 412,
+  totalDocsExamined: 354,
+  executionTimeMillis: 1,
+  rejectedPlans: 1,
+  indexBounds: {
+    track_genre: [
+      '["pop", "pop"]'
+    ],
+    popularity: [
+      '[MaxKey, MinKey]'
+    ],
+    'audio_features.danceability': [
+      '[0.7, inf.0]'
+    ]
+  }
+}
+
+======================================================================
+Завдання 2. explicit + instrumentalness + speechiness
+======================================================================
+
+--- 2.1. До створення індексу ---
+{
+  label: 'без індексу',
+  winningPlan: 'COLLSCAN',
+  indexName: '(немає)',
+  nReturned: 16141,
+  totalKeysExamined: 0,
+  totalDocsExamined: 113999,
+  executionTimeMillis: 134,
+  rejectedPlans: 0
+}
+
+--- 2.2. Після створення індексу ---
+{
+  label: 'складений індекс',
+  winningPlan: 'FETCH → IXSCAN',
+  indexName: 'explicit_instrumentalness_speechiness',
+  nReturned: 16141,
+  totalKeysExamined: 16602,
+  totalDocsExamined: 16141,
+  executionTimeMillis: 38,
+  rejectedPlans: 0,
+  indexBounds: {
+    explicit: [
+      '[false, false]'
+    ],
+    'audio_features.instrumentalness': [
+      '(0.5, inf.0]'
+    ],
+    'audio_features.speechiness': [
+      '[-inf.0, 0.1)'
+    ]
+  }
+}
+
+--- 2.3. Запит частини 2 (з loudness < -10) ---
+{
+  label: 'складений індекс + loudness',
+  winningPlan: 'FETCH → IXSCAN',
+  indexName: 'explicit_instrumentalness_speechiness',
+  nReturned: 9324,
+  totalKeysExamined: 16602,
+  totalDocsExamined: 16141,
+  executionTimeMillis: 50,
+  rejectedPlans: 0,
+  indexBounds: {
+    explicit: [
+      '[false, false]'
+    ],
+    'audio_features.instrumentalness': [
+      '(0.5, inf.0]'
+    ],
+    'audio_features.speechiness': [
+      '[-inf.0, 0.1)'
+    ]
+  }
+}
+Фільтр на стадії FETCH: {"audio_features.loudness":{"$lt":-10}}
+
+======================================================================
+Завдання 3. Чи є запит покривним?
+======================================================================
+
+--- 3.1. Запит з умови (без проєкції) ---
+{
+  label: 'без проєкції',
+  winningPlan: 'FETCH → IXSCAN',
+  indexName: 'genre_popularity_danceability',
+  nReturned: 317,
+  totalKeysExamined: 317,
+  totalDocsExamined: 317,
+  executionTimeMillis: 0,
+  rejectedPlans: 0,
+  indexBounds: {
+    track_genre: [
+      '["pop", "pop"]'
+    ],
+    popularity: [
+      '[inf.0, 70]'
+    ],
+    'audio_features.danceability': [
+      '[MinKey, MaxKey]'
+    ]
+  }
+}
+
+--- 3.2. Той самий фільтр, але проєкція лише на поля індексу і _id: 0 ---
+{
+  label: 'з проєкцією',
+  winningPlan: 'PROJECTION_COVERED → IXSCAN',
+  indexName: 'genre_popularity_danceability',
+  nReturned: 317,
+  totalKeysExamined: 317,
+  totalDocsExamined: 0,
+  executionTimeMillis: 0,
+  rejectedPlans: 0,
+  indexBounds: {
+    track_genre: [
+      '["pop", "pop"]'
+    ],
+    popularity: [
+      '[inf.0, 70]'
+    ],
+    'audio_features.danceability': [
+      '[MinKey, MaxKey]'
+    ]
+  }
+}
+
+--- 3.3. Проєкція без _id: 0 (_id не входить до індексу) ---
+{
+  label: 'проєкція з _id',
+  winningPlan: 'PROJECTION_SIMPLE → FETCH → IXSCAN',
+  indexName: 'genre_popularity_danceability',
+  nReturned: 317,
+  totalKeysExamined: 317,
+  totalDocsExamined: 317,
+  executionTimeMillis: 0,
+  rejectedPlans: 0,
+  indexBounds: {
+    track_genre: [
+      '["pop", "pop"]'
+    ],
+    popularity: [
+      '[inf.0, 70]'
+    ],
+    'audio_features.danceability': [
+      '[MinKey, MaxKey]'
+    ]
+  }
+}
+
+======================================================================
+Підсумкові індекси колекції tracks
+======================================================================
+[
+  {
+    name: '_id_',
+    key: {
+      _id: 1
+    }
+  },
+  {
+    name: 'genre_popularity_danceability',
+    key: {
+      track_genre: 1,
+      popularity: -1,
+      'audio_features.danceability': 1
+    }
+  },
+  {
+    name: 'explicit_instrumentalness_speechiness',
+    key: {
+      explicit: 1,
+      'audio_features.instrumentalness': 1,
+      'audio_features.speechiness': 1
+    }
+  }
+]

@@ -1,0 +1,18 @@
+# Секрети
+.env
+
+# Дані (завантажуються з Kaggle, ~20 МБ)
+dataset.csv
+*.zip
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Редактори та ОС
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
